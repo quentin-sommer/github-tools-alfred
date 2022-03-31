@@ -44,7 +44,7 @@ func prs(doDownload bool, query string) {
 	cacheName := "prs.json"
 	log.Printf("[main] Fetching prs and filtering with query '%s'", query)
 	if doDownload {
-		cacheData(cacheName, fetchPrs)
+		cacheData(cacheName, fetchInvolvedPrs)
 	}
 	var prs []*PullRequest
 	value, expired := getCachedValue(cacheName, maxCacheAge)
@@ -56,6 +56,42 @@ func prs(doDownload bool, query string) {
 	}
 	if expired {
 		startDownloadJob("prs")
+	}
+	if prs == nil {
+		wf.NewItem("Downloading pull requests…")
+		return
+	}
+
+	for _, pr := range prs {
+		wf.NewItem(pr.GetTitle()).
+			Subtitle(pr.GetHTMLURL()).
+			Arg(pr.GetHTMLURL()).
+			UID(strconv.FormatInt(pr.GetID(), 10)).
+			Valid(true)
+	}
+
+	if query != "" {
+		res := wf.Filter(query)
+		log.Printf("[main] %d/%d prs match %q", len(res), len(prs), query)
+	}
+}
+func prsMine(doDownload bool, query string) {
+	maxCacheAge := 1 * time.Minute
+	cacheName := "prsMine.json"
+	log.Printf("[main] Fetching prsMine and filtering with query '%s'", query)
+	if doDownload {
+		cacheData(cacheName, fetchMyPrs)
+	}
+	var prs []*PullRequest
+	value, expired := getCachedValue(cacheName, maxCacheAge)
+
+	if value != nil {
+		if err := json.Unmarshal(*value, &prs); err != nil {
+			wf.FatalError(err)
+		}
+	}
+	if expired {
+		startDownloadJob("prsMine")
 	}
 	if prs == nil {
 		wf.NewItem("Downloading pull requests…")
@@ -208,10 +244,11 @@ func login(_ bool, query string) {
 }
 
 var commands = map[string]Command{
-	"repos":  repos,
-	"prs":    prs,
-	"login":  login,
-	"logout": logout,
+	"repos":    repos,
+	"prs":      prs,
+	"prs-mine": prsMine,
+	"login":    login,
+	"logout":   logout,
 }
 
 func logout(_ bool, _ string) {

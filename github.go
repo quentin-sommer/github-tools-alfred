@@ -12,13 +12,10 @@ import (
 
 type PullRequest = github.Issue
 
-func fetchPrs() (interface{}, error) {
+func fetchPrs(searchString string) (interface{}, error) {
 	client, ctx := getGitHubClient()
-	user, _, err := client.Users.Get(ctx, "")
-	if err != nil {
-		wf.FatalError(err)
-	}
-	prs, _, err := client.Search.Issues(ctx, "is:pr state:open author:"+user.GetLogin(), &github.SearchOptions{
+
+	prs, _, err := client.Search.Issues(ctx, searchString, &github.SearchOptions{
 		Sort:  "updated",
 		Order: "desc",
 		ListOptions: github.ListOptions{
@@ -30,6 +27,23 @@ func fetchPrs() (interface{}, error) {
 		wf.FatalError(err)
 	}
 	return prs.Issues, nil
+}
+
+func fetchMyPrs() (interface{}, error) {
+	client, ctx := getGitHubClient()
+	user, _, err := client.Users.Get(ctx, "")
+	if err != nil {
+		wf.FatalError(err)
+	}
+	return fetchPrs("is:pr state:open author:" + user.GetLogin())
+}
+func fetchInvolvedPrs() (interface{}, error) {
+	client, ctx := getGitHubClient()
+	user, _, err := client.Users.Get(ctx, "")
+	if err != nil {
+		wf.FatalError(err)
+	}
+	return fetchPrs("is:pr state:open involves:" + user.GetLogin())
 }
 
 func getGitHubClientWithToken(accessToken string) (*github.Client, context.Context) {
